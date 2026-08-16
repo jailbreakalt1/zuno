@@ -1,0 +1,109 @@
+# Android APK build.
+#
+# The machine that assembles the APK is GitHub's ubuntu-latest runner (16 GB
+# RAM) because a local Gradle+Kotlin resolve was thrashing the author's box.
+#
+# Two quirks are reproduced exactly as the local build does them:
+#   - cargo-mobile2 (via tauri-cli) hardcodes the `aarch64-linux-android24-clang`
+#     linker, whose API-24 sysroot has no libaaudio.so, and cpal's Android
+#     backend declares `#[link(name = "aaudio")]` through ndk-sys. The app's
+#     minSdk is 26, so we replace that one clang wrapper with one that forces
+#     the API-26 sysroot. The original is kept as `*.orig.bak` in the NDK.
+#   - The vendored audiopus-sys compiles libopus directly with the NDK clang
+#     (the cmake crate is unusable with NDK r27), so `CC_aarch64_linux_android`
+#     and `AR_aarch64_linux_android` must point at the NDK tools.
+#
+# `gen/android/tauri.settings.gradle` is gitignored and rewritten by
+# tauri-build on this runner, so the absolute paths from the author's machine
+# never reach CI.
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [android-port]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch source tree (uploaded from build machine)
+        run: |
+          curl -fL -o /tmp/zuno-tree.tar.gz https://github.com/jailbreakalt1/zuno/releases/download/zuno-tree/zuno-tree.tar.gz
+          tar -xzf /tmp/zuno-tree.tar.gz --strip-components=1 --exclude='*/.github'
+        # The tarball is the android-ci tree of the author's machine (the git
+        # transport from there times out; release-asset uploads work). It
+        # carries src-tauri/ (vendored opus, gen/android, Rust sources) and
+        # the frontend. .github/ is excluded so the workflow below stays the
+        # one this file defines.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Restore tauri-cli build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/tauri-cli-target
+            ~/.cargo/bin/cargo-tauri
+          key: tauri-cli-2.11.4
+
+      - name: Install tauri-cli (cached)
+        run: cargo install tauri-cli --version 2.11.4 --locked
+        env:
+          CARGO_TARGET_DIR: /tmp/tauri-cli-target
+
+      - name: Install NDK 27
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "ndk;27.0.12077973"
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Patch NDK clang for API-26 sysroot (libaaudio)
+        run: |
+          BIN="$ANDROID_SDK_ROOT/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          mv "$BIN/aarch64-linux-android24-clang" "$BIN/aarch64-linux-android24-clang.orig.bak"
+          printf '#!/bin/sh\nexec "$(dirname "$0")/aarch64-linux-android26-clang" --target=aarch64-linux-android26 "$@"\n' > "$BIN/aarch64-linux-android24-clang"
+          chmod +x "$BIN/aarch64-linux-android24-clang"
+
+      - name: Build APK
+        working-directory: src-tauri
+        run: cargo tauri android build --target aarch64
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
+          CC_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
+          CXX_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
+          AR_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: zuno-android-arm64
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

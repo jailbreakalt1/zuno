@@ -77,8 +77,9 @@ jobs:
 
       - name: Install NDK 27
         run: |
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager "ndk;27.0.12077973"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null
+          "$SDKMANAGER" "ndk;27.0.12077973"
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
 
@@ -100,6 +101,7 @@ jobs:
           CC_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
           CXX_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
           AR_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          PATH: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin:${{ env.PATH }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

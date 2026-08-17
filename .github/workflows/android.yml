@@ -87,15 +87,15 @@ jobs:
 
       - name: Install NDK 27
         run: |
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses > /dev/null
           "$SDKMANAGER" "ndk;27.0.12077973"
         env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_HOME: /usr/local/lib/android/sdk
 
       - name: Patch NDK clang for API-26 sysroot (libaaudio)
         run: |
-          BIN="$ANDROID_SDK_ROOT/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          BIN="/usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin"
           mv "$BIN/aarch64-linux-android24-clang" "$BIN/aarch64-linux-android24-clang.orig.bak"
           printf '#!/bin/sh\nexec "$(dirname "$0")/aarch64-linux-android26-clang" --target=aarch64-linux-android26 "$@"\n' > "$BIN/aarch64-linux-android24-clang"
           chmod +x "$BIN/aarch64-linux-android24-clang"
@@ -103,16 +103,16 @@ jobs:
       - name: Build APK
         working-directory: src-tauri
         run: |
-          export PATH="$ANDROID_SDK_ROOT/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export PATH="/usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
           cargo tauri android build --target aarch64
         env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
-          CC_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
-          CXX_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
-          AR_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/27.0.12077973
+          CC_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
+          CXX_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
+          AR_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

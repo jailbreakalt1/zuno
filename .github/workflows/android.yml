@@ -48,9 +48,11 @@ jobs:
           if [ "${#inner[@]}" = "1" ] && [ -d "${inner[0]}" ]; then
             mv "${inner[0]}"/* /tmp/zuno-src/ && rmdir "${inner[0]}"
           fi
-          # .github is excluded: the workflow file must stay the one this
-          # branch defines, not whatever the tarball carries.
-          find /tmp/zuno-src -mindepth 1 -maxdepth 1 ! -name .github -exec cp -a {} . \;
+          # Wipe the upstream checkout so stale files from this branch's
+          # parent (upstream main) cannot pair up with newer extracted files;
+          # .git and .github stay (workflow + git metadata).
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec rm -rf {} +
+          cp -a /tmp/zuno-src/. .
         # The tarball is the android-ci tree of the author's machine (the git
         # transport from there times out; release-asset uploads work). It
         # carries src-tauri/ (vendored opus, gen/android, Rust sources) and

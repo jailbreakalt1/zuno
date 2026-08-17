@@ -102,6 +102,22 @@ jobs:
           printf '#!/bin/sh\nexec "$(dirname "$0")/aarch64-linux-android26-clang" --target=aarch64-linux-android26 "$@"\n' > "$BIN/aarch64-linux-android24-clang"
           chmod +x "$BIN/aarch64-linux-android24-clang"
 
+      - name: Shim tauri CLI for gen/android gradle tasks
+        # gen/android was created by `tauri android init` when the npm "tauri"
+        # wrapper was the active CLI, so the rust gradle plugin runs
+        # `node tauri android android-studio-script ...` and needs a "tauri"
+        # module. Point it at the cargo-tauri binary the step above installed.
+        run: |
+          SHIM='#!/usr/bin/env node
+          const { spawnSync } = require("child_process");
+          const r = spawnSync("cargo-tauri", process.argv.slice(2), { stdio: "inherit" });
+          process.exit(r.status ?? 1);'
+          mkdir -p src-tauri/node_modules/tauri node_modules/tauri
+          printf '%s\n' "$SHIM" > src-tauri/node_modules/tauri/index.js
+          cp src-tauri/node_modules/tauri/index.js node_modules/tauri/index.js
+          cp src-tauri/node_modules/tauri/index.js src-tauri/tauri
+          chmod +x src-tauri/tauri
+
       - name: Build APK
         working-directory: src-tauri
         run: |

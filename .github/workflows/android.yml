@@ -92,7 +92,9 @@ jobs:
 
       - name: Build APK
         working-directory: src-tauri
-        run: cargo tauri android build --target aarch64
+        run: |
+          export PATH="$ANDROID_SDK_ROOT/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          cargo tauri android build --target aarch64
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
@@ -101,7 +103,6 @@ jobs:
           CC_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
           CXX_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
           AR_aarch64_linux_android: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-          PATH: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin:${{ env.PATH }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

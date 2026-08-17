@@ -39,12 +39,22 @@ jobs:
       - name: Fetch source tree (uploaded from build machine)
         run: |
           curl -fL -o /tmp/zuno-tree.tar.gz https://github.com/jailbreakalt1/zuno/releases/download/zuno-tree/zuno-tree.tar.gz
-          tar -xzf /tmp/zuno-tree.tar.gz --strip-components=1 --exclude='*/.github'
+          mkdir -p /tmp/zuno-src
+          tar -xzf /tmp/zuno-tree.tar.gz -C /tmp/zuno-src
+          # git archive may or may not have prefixed the tree with a branch
+          # name; flatten a single leading directory if present.
+          shopt -s dotglob nullglob
+          inner=(/tmp/zuno-src/*)
+          if [ "${#inner[@]}" = "1" ] && [ -d "${inner[0]}" ]; then
+            mv "${inner[0]}"/* /tmp/zuno-src/ && rmdir "${inner[0]}"
+          fi
+          # .github is excluded: the workflow file must stay the one this
+          # branch defines, not whatever the tarball carries.
+          find /tmp/zuno-src -mindepth 1 -maxdepth 1 ! -name .github -exec cp -a {} . \;
         # The tarball is the android-ci tree of the author's machine (the git
         # transport from there times out; release-asset uploads work). It
         # carries src-tauri/ (vendored opus, gen/android, Rust sources) and
-        # the frontend. .github/ is excluded so the workflow below stays the
-        # one this file defines.
+        # the frontend.
 
       - uses: actions/setup-node@v4
         with:
